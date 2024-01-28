@@ -5,6 +5,7 @@ using GGSTReplayTakeover.Battle.Internal;
 using GGSTReplayTakeover.Battle.Internal.Enums;
 using GGSTReplayTakeover.Common.Enums;
 using UE4SSDotNetFramework.Framework;
+// ReSharper disable InconsistentNaming
 
 namespace GGSTReplayTakeover.Common;
 
@@ -22,7 +23,7 @@ public static class Main
     private static UpdateBattleInputFunc? _updateBattleInputOrig;
     unsafe delegate void UpdateBattleInputFunc(BattleInputAnalyzer* @this, RecFlag recFlag);
     private static unsafe delegate* unmanaged[Cdecl]<BattleInputAnalyzer*, RecFlag, void> _updateBattleInputPtr;
-
+    
     private static IntPtr _updateSystemHook;
     private static UpdateSystemFunc? _updateSystemOrig;
     delegate void UpdateSystemFunc(IntPtr @this);
@@ -30,8 +31,8 @@ public static class Main
 
     private static IntPtr _updateReplayHook;
     private static UpdateReplayFunc? _updateReplayOrig;
-    delegate void UpdateReplayFunc(IntPtr @this);
-    private static unsafe delegate* unmanaged[Cdecl]<IntPtr, void> _updateReplayPtr;
+    unsafe delegate void UpdateReplayFunc(ReplayManager* @this);
+    private static unsafe delegate* unmanaged[Cdecl]<ReplayManager*, void> _updateReplayPtr;
 
     private static GameKeyToRecFlagFunc? _gameKeyToRecFlag;
     delegate RecFlag GameKeyToRecFlagFunc(PadId padId, GameKeyFlag flag, bool isReverse);
@@ -44,12 +45,17 @@ public static class Main
     private static unsafe BattleInputAnalyzer* _analyzer;
     private static unsafe RedGameStateBattle.RedGameStateBattleInternal* _gameState;
     private static bool _isTakeover;
+    private static int _takeoverFrame;
+    private static bool _fastForward;
+    private static bool _toggleRewind;
+    private static bool _toggleSkip;
     private static RedGameCommon? _gameCommon;
     private static RedGameCommon.GameMode _lastMode = RedGameCommon.GameMode.Invalid;
+    private static int _roundCount = -1;
     
     private static bool CheckMode(RedGameCommon.GameMode cmp)
     {
-        _gameCommon = new RedGameCommon(ObjectReference.Find("REDGameCommon"));
+        _gameCommon ??= new RedGameCommon(ObjectReference.Find("REDGameCommon"));
         _lastMode = _gameCommon.GetGameMode();
         return cmp == _lastMode;
     }
@@ -65,21 +71,51 @@ public static class Main
             return;
         }
 
-        if ((GetKeyState(0x71) & 0x8000) == 0x8000)
+        if (@this->BattleState->RoundCount != _roundCount)
         {
+            if (_roundCount > @this->BattleState->RoundCount && _isTakeover)
+            {
+                _toggleSkip = true;
+            }
+            _roundCount = @this->BattleState->RoundCount;
+            @this->ObjectManager->GameFrame = 0;
+        }
+                
+        if ((GetKeyState(0x70) & 0x8000) == 0x8000)
+        {
+            Debug.Log(LogLevel.Default, "Enable takeover");
             _isTakeover = true;
+            _takeoverFrame = @this->ObjectManager->GameFrame;
+        }
+
+        if ((GetKeyState(0x71) & 0x8000) == 0x8000 && _isTakeover)
+        {
+            Debug.Log(LogLevel.Default, "Takeover P1");
             _analyzer = &_gameState->ObjectManager->InputAnalyzerP1;
         }
 
-        if ((GetKeyState(0x72) & 0x8000) == 0x8000)
+        if ((GetKeyState(0x72) & 0x8000) == 0x8000 && _isTakeover)
         {
-            _isTakeover = true;
+            Debug.Log(LogLevel.Default, "Takeover P2");
             _analyzer = &_gameState->ObjectManager->InputAnalyzerP2;
         }
 
-        if ((GetKeyState(0x73) & 0x8000) == 0x8000)
+        if ((GetKeyState(0x73) & 0x8000) == 0x8000 && !_fastForward)
         {
+            _fastForward = true;
+            _toggleRewind = true;
+            _analyzer = null;
+        }
+
+        if ((GetKeyState(0x74) & 0x8000) == 0x8000)
+        {
+            Debug.Log(LogLevel.Default, "End Takeover");
             _isTakeover = false;
+            _takeoverFrame = 0;
+            _toggleRewind = false;
+            _fastForward = false;
+            _toggleSkip = false;
+            _toggleRewind = false;
             _analyzer = null;
         }
         
@@ -110,9 +146,47 @@ public static class Main
     }
 
     [UnmanagedCallersOnly(CallConvs = new []{typeof(CallConvCdecl)})]
-    private static void UpdateReplayHook(IntPtr @this)
+    private static unsafe void UpdateReplayHook(ReplayManager* @this)
     {
-        if (!_isTakeover) _updateReplayOrig!(@this);
+        if (_analyzer is not null)
+        {
+            if (!_toggleRewind) return;
+            
+            _toggleRewind = false;
+            _fastForward = false;
+            @this->PlayScale = 0;
+            return;
+        }
+        
+        _updateReplayOrig!(@this);
+        
+        if (_toggleRewind)
+        {
+            _toggleRewind = false;
+            _gameState->ObjectManager->GameFrame = 0;
+            @this->PrevSeq = true;
+            return;
+        }
+        
+        if (_toggleSkip)
+        {
+            _toggleSkip = false;
+            _toggleRewind = false;
+            _gameState->ObjectManager->GameFrame = 0;
+            @this->NextSeq = true;
+            return;
+        }
+
+        switch (_fastForward)
+        {
+            case true when _gameState->ObjectManager->GameFrame < _takeoverFrame:
+                @this->PlayScale = 1;
+                break;
+            case true:
+                _fastForward = false;
+                @this->PlayScale = 0;
+                break;
+        }
     }
     
     public static void StartMod()
@@ -181,7 +255,7 @@ public static class Main
             {
                 IntPtr funcPtr = 0;
                 _updateReplayPtr = &UpdateReplayHook;
-                void Del(IntPtr @this) => _updateReplayPtr(@this);
+                void Del(ReplayManager* @this) => _updateReplayPtr(@this);
 
                 _updateReplayHook = Hooking.Hook(updateReplayAddr, Marshal.GetFunctionPointerForDelegate((UpdateReplayFunc)Del), ref funcPtr);
                 _updateReplayOrig = Marshal.GetDelegateForFunctionPointer<UpdateReplayFunc>(funcPtr);

@@ -9,4 +9,6 @@ public struct BattleObjectManager
     public BattleInputAnalyzer InputAnalyzerP1;
     [FieldOffset(0x3922)]
     public BattleInputAnalyzer InputAnalyzerP2;
+    [FieldOffset(0x3DBC)]
+    public int GameFrame;
 }
