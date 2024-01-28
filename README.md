@@ -10,3 +10,5 @@ Controls:
 - F5 to release a takeover. This also unsets the set rewind point.
 
 Disabled outside of replays. Can be used on downloaded replays in addition to local replays.
+
+To install, extract contents of the release GGSTReplayTakeover.rar into GUILTY GEAR STRIVE\RED\Binaries\Win64. **Do not use with Unverum; this mod requires a pre-release version of UE4SS that Unverum does not support.**
