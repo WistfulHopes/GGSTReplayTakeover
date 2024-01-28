@@ -83,20 +83,17 @@ public static class Main
                 
         if ((GetKeyState(0x70) & 0x8000) == 0x8000)
         {
-            Debug.Log(LogLevel.Default, "Enable takeover");
             _isTakeover = true;
             _takeoverFrame = @this->ObjectManager->GameFrame;
         }
 
         if ((GetKeyState(0x71) & 0x8000) == 0x8000 && _isTakeover)
         {
-            Debug.Log(LogLevel.Default, "Takeover P1");
             _analyzer = &_gameState->ObjectManager->InputAnalyzerP1;
         }
 
         if ((GetKeyState(0x72) & 0x8000) == 0x8000 && _isTakeover)
         {
-            Debug.Log(LogLevel.Default, "Takeover P2");
             _analyzer = &_gameState->ObjectManager->InputAnalyzerP2;
         }
 
@@ -109,7 +106,6 @@ public static class Main
 
         if ((GetKeyState(0x74) & 0x8000) == 0x8000)
         {
-            Debug.Log(LogLevel.Default, "End Takeover");
             _isTakeover = false;
             _takeoverFrame = 0;
             _toggleRewind = false;
