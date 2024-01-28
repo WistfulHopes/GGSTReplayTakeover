@@ -1,6 +1,8 @@
 # GGSTReplayTakeover
 UE4SS mod for Guilty Gear -Strive- that adds the replay takeover feature.
 
+Requires .NET 8 **Runtime**. [Download here](https://dotnet.microsoft.com/en-us/download/dotnet/8.0).
+
 Controls:
 
 - F1 to initiate a takeover. This also sets a rewind point.
