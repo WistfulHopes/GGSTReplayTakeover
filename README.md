@@ -14,3 +14,5 @@ Controls:
 Disabled outside of replays. Can be used on downloaded replays in addition to local replays.
 
 To install, extract contents of the release GGSTReplayTakeover.rar into GUILTY GEAR STRIVE\RED\Binaries\Win64. **Do not use with Unverum; this mod requires a pre-release version of UE4SS that Unverum does not support.**
+
+If there are any crashes or the mod doesn't work, please check UE4SS.log in GUILTY GEAR STRIVE\RED\Binaries\Win64, and post an issue with the log attached.
